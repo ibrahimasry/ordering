@@ -1,0 +1,15 @@
+POST http://localhost:3001/order
+Content-Type: application/json
+
+{
+  "products": [
+    {
+      "productId": 1,
+      "quantity": 2
+    }
+  ]
+}
+
+
+
+# GET http://localhost:3001/order/seed HTTP/1.1
