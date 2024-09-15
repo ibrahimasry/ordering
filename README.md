@@ -2,8 +2,6 @@
 
 ## Overview
 
-## Overview
-
 This project implements a monorepo microservice-based architecture for processing orders, updating ingredient stock levels, and sending notifications when stock falls below a threshold. The services communicate asynchronously using **Kafka**, enabling real-time event-driven workflows.
 
 The system consists of three primary services:
