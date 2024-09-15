@@ -2,10 +2,90 @@
 
 ## Overview
 
-This project is a monorepo microservices-based system developed with NestJS, designed for processing and managing orders. It includes several services responsible for different aspects of order management, stock processing, notifications, and email communication.
+## Overview
 
-post to api for create order => emit created order event to a broker => order processing service is listening to new orders : validate it and check ingredients and send event to notification service to notify merchant about below 50 % => complete orders
-=> notification service listening to below 50 % event to sent email
+This project implements a monorepo microservice-based architecture for processing orders, updating ingredient stock levels, and sending notifications when stock falls below a threshold. The services communicate asynchronously using **Kafka**, enabling real-time event-driven workflows.
+
+The system consists of three primary services:
+
+1. **Order Creation Service**: Handles order creation and emits an `OrderCreated` event.
+2. **Order Processing Service**: Listens for `OrderCreated` events, updates ingredient stock, and emits a low-stock alert if stock falls below 50%.
+3. **Notification Service**: Listens for low-stock alerts and sends email notifications to relevant personnel.
+
+## Architecture
+
+### Service Communication Flow
+
+1. **Order Creation**:
+
+   - The **Order Service** receives a request to create an order and publishes an `OrderCreated` event to its topic
+
+2. **Order Processing**:
+
+   - The **Order Processing Service** consumes the `OrderCreated` event, updates ingredient stock levels, and publishes an `Notify` event if necessary to its topic.
+
+3. **Notification**:
+
+   - The **Notification Service** listens for `Notify` events and sends email notifications to relevant personnel.
+
+![plot](./1.drawio.png)
+
+### Services
+
+1. **Order Service** (Producer)
+
+   - **Purpose**: Handles incoming requests for order creation.
+   - **Process**:
+     - Receives an order request .
+     - Validates and saves the order to the database.
+     - Emits an `OrderCreated` event to Kafka on the `order_created` topic.
+
+2. **Order Processing Service** (Consumer & Producer)
+
+   - **Purpose**: Listens for `OrderCreated` events, processes the order, updates stock levels, and checks for low stock.
+   - **Process**:
+     - Consumes `OrderCreated` events from Kafka.
+     - Updates stock levels based on ingredients used in the order.
+     - If any ingredient's stock falls below 50%, emits an `Notify` event.
+
+3. **Notification Service** (Consumer)
+
+   - **Purpose**: Listens for `Notify` events and sends email alerts when stock is critically low.
+   - **Process**:
+     - Consumes `Notify` events from the `notify` topic.
+     - Sends email notifications to alert staff that stock is running low.
+
+### Why Kafka ?
+
+1. **Asynchronous Communication**: Kafka allows services to process tasks asynchronously. For example, once an order is created, the **Order Creation Service** immediately responds to the client, while the actual order processing (such as stock updates) is handled in the background by other services.
+2. **Scalability**: Kafka's ability to handle high-throughput messaging ensures that services can scale independently. If there is an increase in orders, only the **Order Creation Service** needs to scale, without affecting other parts of the system.
+3. **Fault Tolerance**: Kafka persists messages in topics, allowing services to recover from failures without losing important events. For example, if the **Order Processing Service** is down, Kafka retains the `OrderCreated` event until it can be processed when the service is back online.
+4. **Loose Coupling**: Kafka decouples services, making it possible for them to function independently. For instance, the **Notification Service** doesn't need to know about the **Order Processing Service**—it just listens for the `Notify` event from Kafka.
+
+---
+
+## why NestJS ?
+
+1. **Event-driven Nature**: Node.js is well-suited for event-driven architectures like Kafka-based microservices, as it can handle asynchronous I/O efficiently, making it ideal for processing a high volume of Kafka events.
+2. **NestJS Microservice Support**: NestJS has built-in support for Kafka, making it easy to build producers and consumers with minimal configuration. This allows for clean, structured microservice code.
+3. **Modularity**: NestJS’s modular architecture enables clear separation of concerns. Each service (Order, Processing, Notification) is developed as an independent microservice , improving code maintainability and scalability and it offers a common lib approach to shared code between services.
+
+### Test Cases
+
+### Order Creation Test
+
+A test case was written for the **Order Service** to verify that:
+
+- An order can be successfully created when provided with valid input.
+- An `OrderCreated` event is emitted to Kafka once the order is created.
+
+### Order Processing Test
+
+A test case was written for the **Order Processing Service** to verify that:
+
+- The service correctly consumes the `OrderCreated` event.
+- Ingredient stock is properly updated based on the order details.
+- An `Notify` event is emitted to Kafka if any ingredient stock falls below 50%.
 
 Technology Stack
 
@@ -20,92 +100,24 @@ Technology Stack
 ## Build and Start Services
 
 Use Docker Compose to build and start all services and required env as .env.example:
-
-i used pnpm in this project as package manager , to install it > npm i -g pnpm
+I used pnpm in this project as package manager , to install it > `npm i -g pnpm`
 
 #### Code
 
-pnpm i && docker-compose up --build // to build and start the apps
+## To build and start the app
 
-pnpm i && pnpm run test // to run testcases
+`pnpm i && docker-compose up --build // to build and start the apps`
 
-## Services
+## To run the tests
 
-### `OrderProcessingService`
-
-**Description**: Handles the processing of orders. It updates ingredient stock based on order items and manages transactions to ensure data consistency.
-
-**Key Methods**:
-
-- **`updateStock(orderId: number): Promise<void>`**: Processes the order with the given ID, deducts quantities from ingredient stocks, and emits notifications for low stock.
-
-**Dependencies**:
-
-- **Kafka Client**: For emitting notifications about ingredient stock levels.
-- **TypeORM Repositories**:
-  - `Order` - Manages orders.
-  - `Ingredient` - Manages ingredients.
-  - `OrderItem` - Manages items within orders.
-
-**Entities Used**:
-
-- **Order**
-- **Ingredient**
-- **OrderItem**
-
-### `OrderCreationService`
-
-**Description**: Manages the creation of new orders. It calculates total prices, processes order items, and emits events when orders are created.
-
-**Key Methods**:
-
-- **`create(createOrderDto: CreateOrderDto)`**: Creates a new order from the provided DTO, calculates the total price, and emits an order-created event.
-
-**Dependencies**:
-
-- **Kafka Client**: For emitting events about new orders.
-- **TypeORM Repositories**:
-  - `Order` - Manages orders.
-  - `OrderItem` - Manages items within orders.
-  - `Product` - Manages products.
-  - `Ingredient` - Manages ingredients.
-  - `ProductIngredient` - Manages the relationship between products and ingredients.
-
-**Entities Used**:
-
-- **Order**
-- **OrderItem**
-- **Product**
-- **Ingredient**
-- **ProductIngredient**
-
-### `NotificationsService`
-
-**Description**: Handles email notifications. It uses Nodemailer with OAuth2 authentication to send emails for various events such as low stock alerts.
-
-**Key Methods**:
-
-- **`sendEmail(to: string, subject: string, text: string, html?: string)`**: Sends an email to the specified recipient with the provided subject, text, and optional HTML content.
-
-**Dependencies**:
-
-- **Nodemailer**: For sending emails we could use sendgrid or mailchip
-- **ConfigService**: For retrieving configuration values.
-
-**Configuration**:
-
-- **SMTP_USER**: Email address used for sending emails.
-- **GOOGLE_OAUTH_CLIENT_ID**: OAuth2 client ID.
-- **GOOGLE_OAUTH_CLIENT_SECRET**: OAuth2 client secret.
-- **GOOGLE_OAUTH_REFRESH_TOKEN**: OAuth2 refresh token.
-- **MERCHANT_EMAIL**: Default email address for sending emails.
+`pnpm i && pnpm run test // to run testcases `
 
 **Room to improvments**: I built this project to be open to any change and to be a foundation for a fault Tolerance scalable system.
 
-- using partition and more than broker for kafka
-- add merchant entity
-- add payments cycle
-- parition postgres based on marchant Id
+- using partition and more than broker for kafka for large scalse.
+- add merchant entity.
+- add payments cycle.
+- parition postgres based on marchant Id.
 
 # API Endpoints
 

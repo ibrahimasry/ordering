@@ -1,13 +1,13 @@
-POST http://localhost:3001/order
-Content-Type: application/json
+# POST http://localhost:3001/order
+# Content-Type: application/json
 
-{
-  "products": [
-    {
-      "productId": 1,
-      "quantity": 2
-    }
-  ]
-}
+# {
+#   "products": [
+#     {
+#       "productId": 1,
+#       "quantity": 2
+#     }
+#   ]
+# }
 
-#  post http://localhost:3001/order/seed
+ post http://localhost:3001/order/seed
