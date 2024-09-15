@@ -1,8 +1,5 @@
 import { ClientKafka } from '@nestjs/microservices';
-import { Order, OrderStatus } from '@app/common/entities/order.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { OrderItem } from '@app/common/entities/order-item.entity';
-import { Product } from '@app/common/entities/product.entity';
 import * as Dinero from 'dinero.js';
 import {
   BadRequestException,
@@ -15,10 +12,18 @@ import {
   KAFKA_CLIENT,
   ORDER_CREATED_EVENT,
 } from '@app/common/constants/constants';
-import { Ingredient, OrderCreatedEvent, ProductIngredient } from '@app/common';
 import { faker } from '@faker-js/faker';
 import { Connection, In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import {
+  Ingredient,
+  Order,
+  OrderCreatedEvent,
+  OrderItem,
+  OrderStatus,
+  Product,
+  ProductIngredient,
+} from '@app/common';
 
 @Injectable()
 export class OrderCreationService {

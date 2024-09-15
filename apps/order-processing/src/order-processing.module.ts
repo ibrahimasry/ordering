@@ -9,7 +9,11 @@ import { OrderItem } from '@app/common/entities/order-item.entity';
 import { Product } from '@app/common/entities/product.entity';
 import { Ingredient } from '@app/common/entities/ingredient.entity';
 import { ProductIngredient } from '@app/common/entities/product-ingrediant.entity';
-import { BROKERS, KAFKA_CLIENT } from '@app/common/constants/constants';
+import {
+  BROKERS,
+  KAFKA_CLIENT,
+  NOTIFICATION_CLIENT_ID,
+} from '@app/common/constants/constants';
 
 @Module({
   imports: [
@@ -19,7 +23,7 @@ import { BROKERS, KAFKA_CLIENT } from '@app/common/constants/constants';
         name: KAFKA_CLIENT,
         options: {
           client: {
-            clientId: 'notifications',
+            clientId: NOTIFICATION_CLIENT_ID,
 
             brokers: BROKERS,
           },
