@@ -2,14 +2,18 @@ import { Module } from '@nestjs/common';
 import { OrderCreationController } from './order-creation.controller';
 import { OrderCreationService } from './order-creation.service';
 import { DatabaseModule } from '@app/common';
-import { Product } from '@app/common/models/product.entity';
-import { Order } from '@app/common/models/order.entity';
-import { OrderItem } from '@app/common/models/order-item.entity';
-import { Ingredient } from '@app/common/models/ingredient.entity';
-import { ClientKafka, ClientsModule, Transport } from '@nestjs/microservices';
+import { Product } from '@app/common/entities/product.entity';
+import { Order } from '@app/common/entities/order.entity';
+import { OrderItem } from '@app/common/entities/order-item.entity';
+import { Ingredient } from '@app/common/entities/ingredient.entity';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ConfigModule } from '@nestjs/config';
-import { Merchant } from '@app/common/models/merchant.entity';
-import { ProductIngredient } from '@app/common/models/product-ingrediant.entity';
+import { ProductIngredient } from '@app/common/entities/product-ingrediant.entity';
+import {
+  BROKERS,
+  KAFKA_CLIENT,
+  PROCESS_ORDER_CLIENT_ID,
+} from '@app/common/constants/constants';
 
 @Module({
   imports: [
@@ -20,27 +24,26 @@ import { ProductIngredient } from '@app/common/models/product-ingrediant.entity'
       Product,
       Ingredient,
       ProductIngredient,
-      Merchant,
     ]),
     ConfigModule.forRoot({
-      isGlobal: true, // Makes ConfigService available globally
+      isGlobal: true,
     }),
 
     ClientsModule.register([
       {
         transport: Transport.KAFKA,
-        name: 'KAFKA_CLIENT',
+        name: KAFKA_CLIENT,
         options: {
           client: {
-            clientId: 'billing',
+            clientId: PROCESS_ORDER_CLIENT_ID,
 
-            brokers: ['kafka:9092'],
+            brokers: BROKERS,
           },
         },
       },
     ]),
   ],
   controllers: [OrderCreationController],
-  providers: [OrderCreationService, ClientKafka],
+  providers: [OrderCreationService],
 })
 export class OrderCreationModule {}

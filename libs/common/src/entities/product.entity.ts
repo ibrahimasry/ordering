@@ -1,6 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { OrderItem } from './order-item.entity';
-import { Ingredient } from './ingredient.entity';
 import { ProductIngredient } from './product-ingrediant.entity';
 
 @Entity()
@@ -17,8 +16,10 @@ export class Product {
   @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
   orderItems: OrderItem[];
 
-
-  @OneToMany(() => ProductIngredient, productIngredient => productIngredient.product, { cascade: true })
-  productIngredients: ProductIngredient[];  // Link to ProductIngredient entity
-
+  @OneToMany(
+    () => ProductIngredient,
+    (productIngredient) => productIngredient.product,
+    { cascade: true },
+  )
+  productIngredients: ProductIngredient[];
 }

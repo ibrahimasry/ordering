@@ -7,13 +7,12 @@ export class ProductIngredient {
   @PrimaryGeneratedColumn()
   id: number;
 
-
-  @ManyToOne(() => Product, product => product.productIngredients)
+  @ManyToOne(() => Product, (product) => product.productIngredients)
   product: Product;
 
-  @ManyToOne(() => Ingredient, ingredient => ingredient.productIngredients)
+  @ManyToOne(() => Ingredient, (ingredient) => ingredient.productIngredients)
   ingredient: Ingredient;
 
   @Column({ type: 'float' })
-  quantity: number;  // Store the quantity of each ingredient for the product
+  quantity: number;
 }

@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EventPattern } from '@nestjs/microservices';
-import { fail } from 'assert';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
@@ -9,7 +7,6 @@ export class NotificationsService {
   private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
-    // Create a transporter object using the default SMTP transport
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {

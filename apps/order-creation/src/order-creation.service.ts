@@ -1,103 +1,159 @@
 import { ClientKafka } from '@nestjs/microservices';
-import { Order, OrderStatus } from '@app/common/models/order.entity';
-import { Merchant } from '@app/common/models/merchant.entity';
+import { Order, OrderStatus } from '@app/common/entities/order.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { OrderItem } from '@app/common/models/order-item.entity';
-import { Product } from '@app/common/models/product.entity';
-import { Ingredient } from '@app/common/models/ingredient.entity';
-import { Repository, RepositoryNotTreeError } from 'typeorm';
-import * as  Dinero from 'dinero.js';
-import { ProductIngredient } from '@app/common/models/product-ingrediant.entity';
-import { BadRequestException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { OrderItem } from '@app/common/entities/order-item.entity';
+import { Product } from '@app/common/entities/product.entity';
+import * as Dinero from 'dinero.js';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
+import {
+  KAFKA_CLIENT,
+  ORDER_CREATED_EVENT,
+} from '@app/common/constants/constants';
+import { Ingredient, OrderCreatedEvent, ProductIngredient } from '@app/common';
+import { faker } from '@faker-js/faker';
+import { Connection, In, Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class OrderCreationService {
   constructor(
-    @Inject('KAFKA_CLIENT')
+    @Inject(KAFKA_CLIENT)
     private readonly serverClient: ClientKafka,
-  
-    @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
-    @InjectRepository(OrderItem)
-    private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
     @InjectRepository(Ingredient)
     private readonly ingredientRepository: Repository<Ingredient>,
-    @InjectRepository(Merchant)
-    private readonly merchantRepository: Repository<Merchant>,
     @InjectRepository(ProductIngredient)
-    private productIngredientRepository: Repository<ProductIngredient>,
+    private readonly productIngredientsRepository: Repository<ProductIngredient>,
+    private configService: ConfigService,
+    private connection: Connection,
   ) {}
 
   async create(createOrderDto: CreateOrderDto) {
-    const currency = 'us'; // Consider using a configuration value or enum for currencies
+    const queryRunner = this.connection.createQueryRunner();
 
-    const order = new Order();
-    order.merchantId = 1; // Consider making merchantId dynamic or configurable
-    order.status = OrderStatus.PENDING;
-    order.currency = currency;
-
-    await this.orderRepository.save(order);
-
-    let totalAmount = 0;
-
-    // Fetch products in parallel to reduce DB query time
-    const productPromises = createOrderDto.products.map(productOrder =>
-      this.productRepository.findOne({ where: { id: productOrder.productId } })
-    );
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
     try {
-      const products = await Promise.all(productPromises);
+      const currency = this.configService.get('CURRENCY') || 'US';
+      const order = new Order();
+      order.currency = currency; // should be able to get by user Id from token for example
+      let totalAmount = 0;
 
-      // Process each product
-      for (const [index, productOrder] of createOrderDto.products.entries()) {
-        const product = products[index];
+      const products = await queryRunner.manager.find(Product, {
+        where: {
+          id: In(
+            createOrderDto.products.map(
+              (productOrder) => productOrder.productId,
+            ),
+          ),
+        },
+        select: ['id', 'price'],
+      });
 
-        if (!product) {
-          throw new BadRequestException(`Product with ID ${productOrder.productId} not found`);
-        }
+      if (!products || products.length !== createOrderDto.products.length)
+        throw new BadRequestException(`Some Products not found`);
 
+      const productsMap = products.reduce((map, product) => {
+        map.set(product.id, product);
+        return map;
+      }, new Map<number, Product>());
+
+      for (const productOrder of createOrderDto.products) {
         const orderItem = new OrderItem();
+        const product = productsMap.get(productOrder.productId);
+        if (!product)
+          throw new BadRequestException(
+            `Product with ID ${productOrder.productId} not found`,
+          );
+
         orderItem.product = product;
         orderItem.quantity = productOrder.quantity;
 
-        // Use Dinero for currency and amount calculations
-        orderItem.price = Dinero({ amount: product.price * productOrder.quantity * 100, currency }).getAmount() / 100;
-        orderItem.currency = currency;
+        totalAmount +=
+          Dinero({
+            amount: product.price * productOrder.quantity * 100,
+            currency,
+          }).getAmount() / 100;
         orderItem.productId = product.id;
-        totalAmount += orderItem.price;
 
         order.orderItems = order.orderItems || [];
         order.orderItems.push(orderItem);
       }
 
       order.totalPrice = totalAmount;
+      order.status = OrderStatus.CREATED;
 
-      const savedOrderItems = await this.orderItemRepository.save(order.orderItems);
+      const savedOrderItems = await queryRunner.manager.save(
+        OrderItem,
+        order.orderItems,
+      );
       order.orderItems = savedOrderItems;
-      order.status = OrderStatus.CREATED
-      const createdOrder = await this.orderRepository.save(order);
 
-       
-      // Emit the order-created event
-      this.serverClient.emit('order-created', new OrderCreatedEvent(createdOrder.id)).subscribe(console.log)
+      const createdOrder = await queryRunner.manager.save(Order, order);
 
-      return createdOrder; 
+      await queryRunner.commitTransaction();
+      this.serverClient.emit(
+        ORDER_CREATED_EVENT,
+        new OrderCreatedEvent(createdOrder.id),
+      );
+
+      return createdOrder;
     } catch (error) {
+      await queryRunner.rollbackTransaction();
       console.error('Error creating order:', error);
-      throw new InternalServerErrorException('Failed to create order');
+      if (error instanceof BadRequestException) throw error;
+      throw new InternalServerErrorException(error.message);
+    } finally {
+      await queryRunner.release();
     }
   }
-}
-export class OrderCreatedEvent {
-  constructor(private id:number
-  ) {}
+  async seed() {
+    const ingredients = this.generateFakeIngredients(100);
 
-  toString() {
-    return JSON.stringify({
-      id: this.id,
+    await this.ingredientRepository.save(ingredients);
+
+    const product = this.productRepository.create({
+      name: faker.commerce.productName(),
+      price: parseFloat(faker.commerce.price()),
+    });
+    await this.productRepository.save(product);
+
+    const productIngredients = this.generateProductIngredients(
+      product,
+      ingredients,
+    );
+
+    await this.productIngredientsRepository.save(productIngredients);
+  }
+
+  private generateFakeIngredients(count: number): Ingredient[] {
+    return Array.from({ length: count }).map(() => {
+      return this.ingredientRepository.create({
+        name: faker.commerce.productMaterial(),
+        initialStock: faker.number.int({ min: 500, max: 2000 }),
+        stock: faker.number.int({ min: 50, max: 200 }),
+      });
+    });
+  }
+
+  private generateProductIngredients(
+    product: Product,
+    ingredients: Ingredient[],
+  ): ProductIngredient[] {
+    return ingredients.map((ingredient) => {
+      return this.productIngredientsRepository.create({
+        product,
+        ingredient,
+        quantity: parseFloat(faker.commerce.price({ min: 0.1, max: 1.0 })),
+      });
     });
   }
 }

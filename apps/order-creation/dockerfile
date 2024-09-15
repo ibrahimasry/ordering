@@ -8,6 +8,7 @@ COPY tsconfig.json tsconfig.json
 COPY nest-cli.json nest-cli.json
 
 RUN npm install -g pnpm
+RUN npm install -g @nestjs/cli
 
 COPY apps/order-creation apps/order-creation
 COPY libs libs

@@ -4,9 +4,11 @@ import { NotificationsService } from './notifications.service';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [ConfigModule.forRoot({
-    isGlobal: true,
-  })],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+  ],
   controllers: [NotificationsController],
   providers: [NotificationsService],
 })

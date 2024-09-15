@@ -4,24 +4,24 @@ import { OrderProcessingService } from './order-processing.service';
 import { ClientKafka, ClientsModule, Transport } from '@nestjs/microservices';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from '@app/common';
-import { Order } from '@app/common/models/order.entity';
-import { OrderItem } from '@app/common/models/order-item.entity';
-import { Product } from '@app/common/models/product.entity';
-import { Ingredient } from '@app/common/models/ingredient.entity';
-import { Merchant } from '@app/common/models/merchant.entity';
-import { ProductIngredient } from '@app/common/models/product-ingrediant.entity';
+import { Order } from '@app/common/entities/order.entity';
+import { OrderItem } from '@app/common/entities/order-item.entity';
+import { Product } from '@app/common/entities/product.entity';
+import { Ingredient } from '@app/common/entities/ingredient.entity';
+import { ProductIngredient } from '@app/common/entities/product-ingrediant.entity';
+import { BROKERS, KAFKA_CLIENT } from '@app/common/constants/constants';
 
 @Module({
-  imports: [    
+  imports: [
     ClientsModule.register([
       {
         transport: Transport.KAFKA,
-        name: 'KAFKA_CLIENT',
+        name: KAFKA_CLIENT,
         options: {
           client: {
             clientId: 'notifications',
 
-            brokers: ['kafka:9092'],
+            brokers: BROKERS,
           },
           consumer: {
             groupId: 'email-notifications',
@@ -31,13 +31,19 @@ import { ProductIngredient } from '@app/common/models/product-ingrediant.entity'
     ]),
 
     DatabaseModule,
-    DatabaseModule.forFeature([Order,OrderItem,Product,Ingredient,Merchant,ProductIngredient]),
+    DatabaseModule.forFeature([
+      Order,
+      OrderItem,
+      Product,
+      Ingredient,
+      ProductIngredient,
+    ]),
 
     ConfigModule.forRoot({
-    isGlobal: true,
-  }),
-],
+      isGlobal: true,
+    }),
+  ],
   controllers: [OrderProcessingController],
-  providers: [OrderProcessingService,ClientKafka],
+  providers: [OrderProcessingService, ClientKafka],
 })
 export class OrderProcessingModule {}

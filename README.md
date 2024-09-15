@@ -1,85 +1,131 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NestJS Microservices Project
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Overview
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This project is a monorepo microservices-based system developed with NestJS, designed for processing and managing orders. It includes several services responsible for different aspects of order management, stock processing, notifications, and email communication.
 
-## Description
+post to api for create order => emit created order event to a broker => order processing service is listening to new orders : validate it and check ingredients and send event to notification service to notify merchant about below 50 % => complete orders
+=> notification service listening to below 50 % event to sent email
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Technology Stack
 
-## Project setup
+- **NestJS**
+- **TypeORM**
+- **Postgres**
+- **Kafka**
+- **Docker Compose**
+- **TypeScript**
+- **Nodemailer**
 
-```bash
-$ pnpm install
-```
+## Build and Start Services
 
-## Compile and run the project
+Use Docker Compose to build and start all services and required env as .env.example:
 
-```bash
-# development
-$ pnpm run start
+i used pnpm in this project as package manager , to install it > npm i -g pnpm
 
-# watch mode
-$ pnpm run start:dev
+#### Code
 
-# production mode
-$ pnpm run start:prod
-```
+pnpm i && docker-compose up --build // to build and start the apps
 
-## Run tests
+pnpm i && pnpm run test // to run testcases
 
-```bash
-# unit tests
-$ pnpm run test
+## Services
 
-# e2e tests
-$ pnpm run test:e2e
+### `OrderProcessingService`
 
-# test coverage
-$ pnpm run test:cov
-```
+**Description**: Handles the processing of orders. It updates ingredient stock based on order items and manages transactions to ensure data consistency.
 
-## Resources
+**Key Methods**:
 
-Check out a few resources that may come in handy when working with NestJS:
+- **`updateStock(orderId: number): Promise<void>`**: Processes the order with the given ID, deducts quantities from ingredient stocks, and emits notifications for low stock.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+**Dependencies**:
 
-## Support
+- **Kafka Client**: For emitting notifications about ingredient stock levels.
+- **TypeORM Repositories**:
+  - `Order` - Manages orders.
+  - `Ingredient` - Manages ingredients.
+  - `OrderItem` - Manages items within orders.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+**Entities Used**:
 
-## Stay in touch
+- **Order**
+- **Ingredient**
+- **OrderItem**
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### `OrderCreationService`
 
-## License
+**Description**: Manages the creation of new orders. It calculates total prices, processes order items, and emits events when orders are created.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+**Key Methods**:
+
+- **`create(createOrderDto: CreateOrderDto)`**: Creates a new order from the provided DTO, calculates the total price, and emits an order-created event.
+
+**Dependencies**:
+
+- **Kafka Client**: For emitting events about new orders.
+- **TypeORM Repositories**:
+  - `Order` - Manages orders.
+  - `OrderItem` - Manages items within orders.
+  - `Product` - Manages products.
+  - `Ingredient` - Manages ingredients.
+  - `ProductIngredient` - Manages the relationship between products and ingredients.
+
+**Entities Used**:
+
+- **Order**
+- **OrderItem**
+- **Product**
+- **Ingredient**
+- **ProductIngredient**
+
+### `NotificationsService`
+
+**Description**: Handles email notifications. It uses Nodemailer with OAuth2 authentication to send emails for various events such as low stock alerts.
+
+**Key Methods**:
+
+- **`sendEmail(to: string, subject: string, text: string, html?: string)`**: Sends an email to the specified recipient with the provided subject, text, and optional HTML content.
+
+**Dependencies**:
+
+- **Nodemailer**: For sending emails we could use sendgrid or mailchip
+- **ConfigService**: For retrieving configuration values.
+
+**Configuration**:
+
+- **SMTP_USER**: Email address used for sending emails.
+- **GOOGLE_OAUTH_CLIENT_ID**: OAuth2 client ID.
+- **GOOGLE_OAUTH_CLIENT_SECRET**: OAuth2 client secret.
+- **GOOGLE_OAUTH_REFRESH_TOKEN**: OAuth2 refresh token.
+- **MERCHANT_EMAIL**: Default email address for sending emails.
+
+**Room to improvments**: I built this project to be open to any change and to be a foundation for a fault Tolerance scalable system.
+
+- using partition and more than broker for kafka
+- add merchant entity
+- add payments cycle
+- parition postgres based on marchant Id
+
+# API Endpoints
+
+## Orders
+
+| **HTTP Method** | **Endpoint**  | **Description**              | **Request Parameters**  | **Response**             |
+| --------------- | ------------- | ---------------------------- | ----------------------- | ------------------------ |
+| `POST`          | `/order`      | Create a new order           | `CreateOrderDto` (body) | `Order` object (created) |
+| `POST`          | `/order/seed` | to seed products for testing |                         |                          |
+
+# Kafka Events
+
+## Order Created Event
+
+| **Event Name**  | **Description**                     | **Payload**        |
+| --------------- | ----------------------------------- | ------------------ |
+| `ORDER_CREATED` | Emitted when a new order is created | `{ "id": number }` |
+
+## Ingredient Low Stock Alert
+
+| **Event Name** | **Description**                                                                             | **Payload**                       |
+| -------------- | ------------------------------------------------------------------------------------------- | --------------------------------- |
+| `NOTIFY`       | Emitted when an ingredient's stock falls below a threshold with ingredientId and user email | `{ "id": number, email: string }` |

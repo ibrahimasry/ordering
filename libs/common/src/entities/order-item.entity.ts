@@ -13,12 +13,6 @@ export class OrderItem {
   @Column()
   quantity: number;
 
-  @Column('decimal', { precision: 10, scale: 2 })
-  price: number;
-
-  @Column()
-  currency: string; 
-
   @ManyToOne(() => Order, (order) => order.orderItems)
   order: Order;
 

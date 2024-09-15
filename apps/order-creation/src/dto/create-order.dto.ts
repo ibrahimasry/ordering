@@ -1,6 +1,11 @@
-// create-order-item.dto.ts
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsPositive ,IsArray, ValidateNested} from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsPositive,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 
 export class CreateOrderItemDto {
   @IsInt()
@@ -13,8 +18,6 @@ export class CreateOrderItemDto {
   @IsNotEmpty()
   quantity: number;
 }
-
-
 
 export class CreateOrderDto {
   @IsArray()
