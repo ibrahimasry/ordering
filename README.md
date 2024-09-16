@@ -12,20 +12,6 @@ The system consists of three primary services:
 
 ## Architecture
 
-### Service Communication Flow
-
-1. **Order Creation**:
-
-   - The **Order Service** receives a request to create an order and publishes an `OrderCreated` event to its topic
-
-2. **Order Processing**:
-
-   - The **Order Processing Service** consumes the `OrderCreated` event, updates ingredient stock levels, and publishes an `Notify` event if necessary to its topic.
-
-3. **Notification**:
-
-   - The **Notification Service** listens for `Notify` events and sends email notifications to relevant personnel.
-
 ![plot](./1.drawio.png)
 
 ### Services
